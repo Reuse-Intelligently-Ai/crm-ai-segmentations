@@ -1,10 +1,31 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { segmentCustomers } from "./actions"; // Import Server Action kita
+import { useState, useTransition, Fragment } from "react";
+import { Menu, Transition } from "@headlessui/react";
+import { ChevronDownIcon, Cog6ToothIcon } from "@heroicons/react/20/solid";
+import { segmentCustomers } from "./actions";
 
-// Data pelanggan dummy
-const dummyCustomers = [
+// --- Tipe Data ---
+type Customer = {
+  id: number;
+  name: string;
+  total_spent: number;
+  last_purchase_days_ago: number;
+};
+
+type SegmentResult = {
+  id: number;
+  segment: string;
+};
+
+type ColumnConfig = {
+  key: keyof Customer | "segment";
+  label: string;
+  visible: boolean;
+};
+
+// --- Data Awal ---
+const dummyCustomers: Customer[] = [
   {
     id: 1,
     name: "Andi Wijaya",
@@ -33,20 +54,25 @@ const dummyCustomers = [
   { id: 6, name: "Fitriani", total_spent: 950000, last_purchase_days_ago: 60 },
 ];
 
-// Tipe data untuk hasil segmentasi
-type SegmentResult = {
-  id: number;
-  segment: string;
-};
+const initialColumns: ColumnConfig[] = [
+  { key: "name", label: "Nama", visible: true },
+  { key: "total_spent", label: "Total Belanja", visible: true },
+  {
+    key: "last_purchase_days_ago",
+    label: "Terakhir Beli (Hari lalu)",
+    visible: true,
+  },
+  { key: "segment", label: "Hasil Segmentasi AI", visible: true },
+];
 
 export default function HomePage() {
-  // State untuk menyimpan hasil dari AI
+  // --- State ---
   const [segments, setSegments] = useState<SegmentResult[]>([]);
-  // State untuk menangani loading
+  const [columns, setColumns] = useState<ColumnConfig[]>(initialColumns);
   const [isPending, startTransition] = useTransition();
-  // State untuk pesan error
   const [error, setError] = useState<string | null>(null);
 
+  // --- Handlers ---
   const handleSegmentClick = () => {
     setError(null);
     startTransition(async () => {
@@ -59,7 +85,16 @@ export default function HomePage() {
     });
   };
 
-  // Menggabungkan data asli dengan hasil segmentasi untuk ditampilkan
+  const handleColumnVisibilityChange = (key: string) => {
+    setColumns((prevColumns) =>
+      prevColumns.map((col) =>
+        col.key === key ? { ...col, visible: !col.visible } : col,
+      ),
+    );
+  };
+
+  // --- Data untuk Render ---
+  const visibleColumns = columns.filter((col) => col.visible);
   const customerWithSegments = dummyCustomers.map((customer) => {
     const segmentInfo = segments.find((s) => s.id === customer.id);
     return {
@@ -68,24 +103,107 @@ export default function HomePage() {
     };
   });
 
+  // --- Fungsi Bantuan Render ---
+  const renderCellContent = (customer: any, columnKey: string) => {
+    const value = customer[columnKey];
+    if (columnKey === "total_spent") {
+      return `Rp${(value as number).toLocaleString("id-ID")}`;
+    }
+    if (columnKey === "segment") {
+      return (
+        <span
+          className={`px-3 py-1 rounded-full text-xs font-bold ${
+            value === "VIP"
+              ? "bg-green-100 text-green-800"
+              : value === "Beresiko"
+              ? "bg-red-100 text-red-800"
+              : value === "Reguler"
+              ? "bg-yellow-100 text-yellow-800"
+              : "text-gray-500"
+          }`}
+        >
+          {value}
+        </span>
+      );
+    }
+    return value;
+  };
+
   return (
     <main className="flex min-h-screen flex-col items-center bg-gray-50 p-8 sm:p-12 md:p-24 font-sans">
-      <div className="w-full max-w-4xl">
+      <div className="w-full max-w-5xl">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
           CRM AI Segmentation
         </h1>
         <p className="text-gray-600 mb-6">
-          Klik tombol di bawah untuk menganalisis dan melakukan segmentasi data
-          pelanggan menggunakan Google Gemini.
+          Gunakan tombol di bawah untuk analisis dan mengatur tampilan kolom
+          tabel.
         </p>
 
-        <button
-          onClick={handleSegmentClick}
-          disabled={isPending}
-          className="mb-8 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
-        >
-          {isPending ? "Menganalisis..." : "Mulai Segmentasi Pelanggan"}
-        </button>
+        <div className="flex items-center gap-4 mb-8">
+          <button
+            onClick={handleSegmentClick}
+            disabled={isPending}
+            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {isPending ? "Menganalisis..." : "Mulai Segmentasi Pelanggan"}
+          </button>
+
+          {/* --- Tombol Atur Kolom --- */}
+          <Menu as="div" className="relative inline-block text-left">
+            <div>
+              <Menu.Button className="inline-flex w-full justify-center gap-x-2 rounded-md bg-white px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                <Cog6ToothIcon
+                  className="h-5 w-5 text-gray-500"
+                  aria-hidden="true"
+                />
+                Atur Kolom
+                <ChevronDownIcon
+                  className="-mr-1 h-5 w-5 text-gray-400"
+                  aria-hidden="true"
+                />
+              </Menu.Button>
+            </div>
+
+            <Transition
+              as={Fragment}
+              enter="transition ease-out duration-100"
+              enterFrom="transform opacity-0 scale-95"
+              enterTo="transform opacity-100 scale-100"
+              leave="transition ease-in duration-75"
+              leaveFrom="transform opacity-100 scale-100"
+              leaveTo="transform opacity-0 scale-95"
+            >
+              <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                <div className="py-1">
+                  {columns.map((col) => (
+                    <Menu.Item key={col.key}>
+                      {({ active }) => (
+                        <div
+                          className={`${
+                            active ? "bg-gray-100" : ""
+                          } px-4 py-2 text-sm`}
+                        >
+                          <label className="flex items-center space-x-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              checked={col.visible}
+                              onChange={() =>
+                                handleColumnVisibilityChange(col.key)
+                              }
+                            />
+                            <span className="text-gray-700">{col.label}</span>
+                          </label>
+                        </div>
+                      )}
+                    </Menu.Item>
+                  ))}
+                </div>
+              </Menu.Items>
+            </Transition>
+          </Menu>
+        </div>
 
         {error && (
           <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
@@ -93,51 +211,31 @@ export default function HomePage() {
           </div>
         )}
 
-        <div className="bg-white shadow-xl rounded-lg overflow-hidden">
+        <div className="bg-white shadow-xl rounded-lg overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                  Nama
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                  Total Belanja
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                  Terakhir Beli (Hari lalu)
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                  Hasil Segmentasi AI
-                </th>
+                {visibleColumns.map((col) => (
+                  <th
+                    key={col.key}
+                    className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider"
+                  >
+                    {col.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {customerWithSegments.map((customer) => (
                 <tr key={customer.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {customer.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    Rp{customer.total_spent.toLocaleString("id-ID")}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {customer.last_purchase_days_ago}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs ${
-                        customer.segment === "VIP"
-                          ? "bg-green-100 text-green-800"
-                          : customer.segment === "Beresiko"
-                          ? "bg-red-100 text-red-800"
-                          : customer.segment === "Reguler"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "text-gray-500"
-                      }`}
+                  {visibleColumns.map((col) => (
+                    <td
+                      key={col.key}
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-700"
                     >
-                      {customer.segment}
-                    </span>
-                  </td>
+                      {renderCellContent(customer, col.key)}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
