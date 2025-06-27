@@ -68,7 +68,7 @@ export async function getCustomAnalysis({
 
   // Ambil hanya field yang relevan dari data pelanggan
   const relevantData = customerData.map((customer) => {
-    const data: { [key: string]: any } = {};
+    const data: { [key: string]: string | number } = {};
     fields.forEach((field) => {
       data[field] = customer[field as keyof Customer];
     });

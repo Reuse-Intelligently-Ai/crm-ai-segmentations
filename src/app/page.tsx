@@ -26,6 +26,8 @@ type Customer = {
   last_purchase_days_ago: number;
 };
 type SegmentResult = { id: number; segment: string };
+// PERBAIKAN: Tipe baru untuk data yang akan ditampilkan di tabel
+type DisplayCustomer = Customer & { segment: string };
 type ColumnKey = keyof Customer | "segment";
 type ColumnConfig = { key: ColumnKey; label: string; visible: boolean };
 
@@ -164,7 +166,10 @@ export default function HomePage() {
     [segments],
   );
   // --- Fungsi Bantuan Render (Penting!) ---
-  const renderCellContent = (customer: any, columnKey: ColumnKey) => {
+  const renderCellContent = (
+    customer: DisplayCustomer,
+    columnKey: ColumnKey,
+  ) => {
     const value = customer[columnKey];
     if (columnKey === "total_spent") {
       return `Rp${(value as number).toLocaleString("id-ID")}`;
